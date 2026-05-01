@@ -1,0 +1,106 @@
+# Allow frontend to receive traffic from ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  ingress:
+    - {}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: api
+---
+# Allow api to receive traffic from frontend and ingress, send to postgres and redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+    - {}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+---
+# Allow worker to send to postgres and redis only — no inbound traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-worker
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: worker
+  ingress: []
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+---
+# Postgres accepts connections only from api and worker
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+    - from:
+        - podSelector:
+            matchLabels:
+              app: worker
+  egress: []
+---
+# Redis accepts connections only from api and worker
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api
+    - from:
+        - podSelector:
+            matchLabels:
+              app: worker
+  egress: []
