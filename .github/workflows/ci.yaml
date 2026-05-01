@@ -124,6 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-scan-push
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    continue-on-error: true  # remove after KUBECONFIG secret is configured in I6
     # Requires secret: KUBECONFIG (base64-encoded kubeconfig file)
     steps:
       - uses: actions/checkout@v4
