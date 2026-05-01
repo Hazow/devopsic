@@ -72,19 +72,19 @@ jobs:
 
       - name: Build api image
         run: |
-          docker build --target production \
+          docker build --target production -f api/Containerfile \
             -t ${{ steps.prefix.outputs.value }}/devopsic-api:${{ steps.tag.outputs.value }} \
             ./api
 
       - name: Build frontend image
         run: |
-          docker build --target production \
+          docker build --target production -f frontend/Containerfile \
             -t ${{ steps.prefix.outputs.value }}/devopsic-frontend:${{ steps.tag.outputs.value }} \
             ./frontend
 
       - name: Build worker image
         run: |
-          docker build --target production \
+          docker build --target production -f worker/Containerfile \
             -t ${{ steps.prefix.outputs.value }}/devopsic-worker:${{ steps.tag.outputs.value }} \
             ./worker
 
