@@ -89,7 +89,7 @@ jobs:
             ./worker
 
       - name: Scan api — fail on CRITICAL
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.prefix.outputs.value }}/devopsic-api:${{ steps.tag.outputs.value }}
           exit-code: '1'
@@ -97,7 +97,7 @@ jobs:
           format: table
 
       - name: Scan frontend — fail on CRITICAL
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.prefix.outputs.value }}/devopsic-frontend:${{ steps.tag.outputs.value }}
           exit-code: '1'
@@ -105,7 +105,7 @@ jobs:
           format: table
 
       - name: Scan worker — fail on CRITICAL
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.prefix.outputs.value }}/devopsic-worker:${{ steps.tag.outputs.value }}
           exit-code: '1'
