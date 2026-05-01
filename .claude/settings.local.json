@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(git clone *)",
+      "Bash(cp -r /tmp/devops-app-clone/frontend /home/toma/devopsic/frontend)",
+      "Bash(cp -r /tmp/devops-app-clone/api /home/toma/devopsic/api)",
+      "Bash(cp -r /tmp/devops-app-clone/worker /home/toma/devopsic/worker)",
+      "Bash(cp -r /tmp/devops-app-clone/infra /home/toma/devopsic/infra)",
+      "Bash(mkdir -p /home/toma/devopsic/docs /home/toma/devopsic/k8s /home/toma/devopsic/security /home/toma/devopsic/.github/workflows)",
+      "Bash(git init *)",
+      "Bash(podman --version)",
+      "Bash(systemctl --user status podman.socket)",
+      "Bash(curl -s http://localhost:8080/healthz)",
+      "Bash(curl -s http://localhost:3000/healthz)",
+      "Bash(curl -s http://localhost:8080/events)",
+      "Bash(curl -s -X POST http://localhost:8080/tickets/purchase -H \"Content-Type: application/json\" -d '{\"eventId\":\"evt-1001\",\"customerEmail\":\"test@example.com\",\"quantity\":2}')",
+      "Bash(curl -s http://localhost:8080/tickets/orders)",
+      "Bash(trivy --version)",
+      "Bash(podman images *)",
+      "Bash(apt-get list *)",
+      "Bash(snap list *)",
+      "Bash(pip show *)",
+      "Bash(curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh)",
+      "Bash(sudo sh *)",
+      "Bash(podman build *)",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

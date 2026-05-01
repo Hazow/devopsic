@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ── 1. Lint and test ────────────────────────────────────────────────────────
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify api
+        run: |
+          cd api
+          npm install
+          node --check src/server.js
+          npm audit --audit-level=critical
+
+      - name: Verify frontend
+        run: |
+          cd frontend
+          npm install
+          node --check src/server.js
+          npm audit --audit-level=critical
+
+      - name: Verify worker
+        run: |
+          cd worker
+          npm install
+          node --check src/worker.js
+          npm audit --audit-level=critical
+
+  # ── 2. Build, scan and push ─────────────────────────────────────────────────
+  build-scan-push:
+    name: Build, scan and push images
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+      registry_prefix: ${{ steps.prefix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: echo "value=git-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Set registry prefix
+        id: prefix
+        run: |
+          echo "value=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build api image
+        run: |
+          docker build --target production \
+            -t ${{ steps.prefix.outputs.value }}/devopsic-api:${{ steps.tag.outputs.value }} \
+            ./api
+
+      - name: Build frontend image
+        run: |
+          docker build --target production \
+            -t ${{ steps.prefix.outputs.value }}/devopsic-frontend:${{ steps.tag.outputs.value }} \
+            ./frontend
+
+      - name: Build worker image
+        run: |
+          docker build --target production \
+            -t ${{ steps.prefix.outputs.value }}/devopsic-worker:${{ steps.tag.outputs.value }} \
+            ./worker
+
+      - name: Scan api — fail on CRITICAL
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.prefix.outputs.value }}/devopsic-api:${{ steps.tag.outputs.value }}
+          exit-code: '1'
+          severity: CRITICAL
+          format: table
+
+      - name: Scan frontend — fail on CRITICAL
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.prefix.outputs.value }}/devopsic-frontend:${{ steps.tag.outputs.value }}
+          exit-code: '1'
+          severity: CRITICAL
+          format: table
+
+      - name: Scan worker — fail on CRITICAL
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          image-ref: ${{ steps.prefix.outputs.value }}/devopsic-worker:${{ steps.tag.outputs.value }}
+          exit-code: '1'
+          severity: CRITICAL
+          format: table
+
+      - name: Push images to registry
+        run: |
+          docker push ${{ steps.prefix.outputs.value }}/devopsic-api:${{ steps.tag.outputs.value }}
+          docker push ${{ steps.prefix.outputs.value }}/devopsic-frontend:${{ steps.tag.outputs.value }}
+          docker push ${{ steps.prefix.outputs.value }}/devopsic-worker:${{ steps.tag.outputs.value }}
+
+  # ── 3. Deploy to Kubernetes ─────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-scan-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Requires secret: KUBECONFIG (base64-encoded kubeconfig file)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Update image tags
+        env:
+          TAG: ${{ needs.build-scan-push.outputs.tag }}
+          PREFIX: ${{ needs.build-scan-push.outputs.registry_prefix }}
+        run: |
+          kubectl set image deployment/api   api=$PREFIX/devopsic-api:$TAG
+          kubectl set image deployment/frontend frontend=$PREFIX/devopsic-frontend:$TAG
+          kubectl set image deployment/worker  worker=$PREFIX/devopsic-worker:$TAG
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/api
+          kubectl rollout status deployment/frontend
+          kubectl rollout status deployment/worker
